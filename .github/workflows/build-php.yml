@@ -66,7 +66,11 @@ jobs:
       - name: Package tarball
         run: |
           tarball="php-${{ env.PHP_VERSION }}-${{ matrix.asset_suffix }}.tar.gz"
-          tar -czf "$tarball" -C buildroot .
+          topdir="php-${{ env.PHP_VERSION }}-${{ matrix.asset_suffix }}"
+          mkdir -p "staging/$topdir"
+          cp -a buildroot/. "staging/$topdir/"
+          tar -czf "$tarball" -C staging "$topdir"
+          rm -rf staging
           ls -la "$tarball"
           echo "tarball=$tarball" >> $GITHUB_OUTPUT
 
