@@ -30,6 +30,6 @@ Or in your mise config:
 ## Release format
 
 - **Tag:** `v{version}` (e.g. `v8.3.15`).
-- **Assets:** `php-{version}-linux-x86_64.tar.gz`, `php-{version}-linux-aarch64.tar.gz`, `php-{version}-macos-x86_64.tar.gz`, `php-{version}-macos-aarch64.tar.gz`.
+- **Assets:** `php-{version}-linux-x86_64.tar.gz`, `php-{version}-linux-aarch64.tar.gz`, `php-{version}-macos-aarch64.tar.gz` (macos-x86_64 not built; GitHub no longer provides macos-13 runners).
 
 Same layout as adwinying/php so the mise github/ubi backend picks the right asset for your OS and arch.

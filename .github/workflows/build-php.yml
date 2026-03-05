@@ -30,9 +30,7 @@ jobs:
           - runner: macos-14
             spc_url: https://dl.static-php.dev/static-php-cli/spc-bin/nightly/spc-macos-aarch64
             asset_suffix: macos-aarch64
-          - runner: macos-13
-            spc_url: https://dl.static-php.dev/static-php-cli/spc-bin/nightly/spc-macos-x86_64
-            asset_suffix: macos-x86_64
+          # macos-13 (Intel) removed: GitHub no longer supports macos-13-us-default
 
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
@@ -98,7 +96,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ inputs.php_version }}
+          # Tag without "v" so mise's GitHub backend finds it (mise requests releases/tags/8.3.15)
+          tag_name: ${{ inputs.php_version }}
           name: PHP v${{ inputs.php_version }}
           body: |
             Static PHP ${{ inputs.php_version }} built with [static-php-cli](https://github.com/crazywhalecc/static-php-cli).
