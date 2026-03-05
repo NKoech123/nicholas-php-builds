@@ -11,6 +11,10 @@ on:
         description: "PHP version to build (e.g. 8.3.15)"
         required: true
         type: string
+      release_name:
+        description: "Release title (default: PHP v{VERSION})"
+        required: false
+        type: string
 
 env:
   PHP_VERSION: ${{ inputs.php_version }}
@@ -102,7 +106,7 @@ jobs:
         with:
           # Tag without "v" so mise's GitHub backend finds it (mise requests releases/tags/8.3.15)
           tag_name: ${{ inputs.php_version }}
-          name: PHP v${{ inputs.php_version }}
+          name: ${{ inputs.release_name || format('PHP v{0}', inputs.php_version) }}
           body: |
             Static PHP ${{ inputs.php_version }} built with [static-php-cli](https://github.com/crazywhalecc/static-php-cli).
             Use with mise: `mise use php@${{ inputs.php_version }}` when `MISE_PHP_BACKEND=github:nicholas/php-builds`.
