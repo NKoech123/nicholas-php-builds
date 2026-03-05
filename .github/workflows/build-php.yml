@@ -70,10 +70,16 @@ jobs:
           cat craft.yml
 
       - name: Build PHP
-        run: ./spc craft
+        run: ./spc craft --debug
         env:
           # Prefer pre-built libs to speed up build
           SPC_PREFER_PREBUILT: "true"
+
+      - name: Show build log on failure
+        if: failure()
+        run: |
+          echo "=== Last 200 lines of build log (look for 'error:' or 'undefined reference') ==="
+          tail -200 log/spc.shell.log 2>/dev/null || tail -200 log/spc.output.log 2>/dev/null || echo "No log found"
 
       - name: Package tarball
         run: |
