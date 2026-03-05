@@ -50,15 +50,23 @@ jobs:
 
       - name: Create craft.yml
         run: |
-          cat > craft.yml << EOF
+          PHPV="${{ env.PHP_VERSION }}"
+          PHPV="${PHPV#v}"
+          EXTENSIONS="apcu,bcmath,calendar,ctype,curl,dba,dom,exif,fileinfo,filter,gd,iconv,mbregex,mbstring,mysqli,mysqlnd,opcache,openssl,pcntl,pdo,pdo_mysql,pdo_sqlite,phar,posix,readline,redis,session,simplexml,sockets,sodium,sqlite3,tokenizer,xml,xmlreader,xmlwriter,xsl,zip,zlib"
+          # Static opcache only available for PHP >= 8.0; omit for 7.x
+          if [[ "$PHPV" == 7.* ]]; then
+            EXTENSIONS="${EXTENSIONS//opcache,/}"
+            echo "PHP 7.x: omitted opcache from extensions"
+          fi
+          cat > craft.yml << CRAFT
           php-version: "${{ env.PHP_VERSION }}"
-          extensions: "apcu,bcmath,calendar,ctype,curl,dba,dom,exif,fileinfo,filter,gd,iconv,mbregex,mbstring,mysqli,mysqlnd,opcache,openssl,pcntl,pdo,pdo_mysql,pdo_sqlite,phar,posix,readline,redis,session,simplexml,sockets,sodium,sqlite3,tokenizer,xml,xmlreader,xmlwriter,xsl,zip,zlib"
+          extensions: "${EXTENSIONS}"
           sapi:
             - cli
             - fpm
           download-options:
             prefer-pre-built: true
-          EOF
+          CRAFT
           cat craft.yml
 
       - name: Build PHP
@@ -86,6 +94,8 @@ jobs:
 
   release:
     needs: build
+    # Run when build finishes (even if some matrix jobs failed) so we publish whatever artifacts succeeded
+    if: always() && (needs.build.result == 'success' || needs.build.result == 'failure')
     runs-on: ubuntu-22.04
     permissions:
       contents: write
