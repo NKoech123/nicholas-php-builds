@@ -1,0 +1,110 @@
+# Build static PHP binaries for a given version and publish as a GitHub release.
+# Use with: Actions → Build PHP → Run workflow (enter e.g. 8.3.15).
+# Releases can be used with mise: MISE_PHP_BACKEND=github:nicholas/php-builds
+
+name: Build PHP
+
+on:
+  workflow_dispatch:
+    inputs:
+      php_version:
+        description: "PHP version to build (e.g. 8.3.15)"
+        required: true
+        type: string
+
+env:
+  PHP_VERSION: ${{ inputs.php_version }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            spc_url: https://dl.static-php.dev/static-php-cli/spc-bin/nightly/spc-linux-x86_64
+            asset_suffix: linux-x86_64
+          - runner: ubuntu-24.04-arm
+            spc_url: https://dl.static-php.dev/static-php-cli/spc-bin/nightly/spc-linux-aarch64
+            asset_suffix: linux-aarch64
+          - runner: macos-14
+            spc_url: https://dl.static-php.dev/static-php-cli/spc-bin/nightly/spc-macos-aarch64
+            asset_suffix: macos-aarch64
+          - runner: macos-13
+            spc_url: https://dl.static-php.dev/static-php-cli/spc-bin/nightly/spc-macos-x86_64
+            asset_suffix: macos-x86_64
+
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download static-php-cli (spc)
+        run: |
+          curl -fsSL -o spc "${{ matrix.spc_url }}"
+          chmod +x spc
+
+      - name: Create craft.yml
+        run: |
+          cat > craft.yml << EOF
+          php-version: "${{ env.PHP_VERSION }}"
+          extensions: "apcu,bcmath,calendar,ctype,curl,dba,dom,exif,fileinfo,filter,gd,iconv,mbregex,mbstring,mysqli,mysqlnd,opcache,openssl,pcntl,pdo,pdo_mysql,pdo_sqlite,phar,posix,readline,redis,session,simplexml,sockets,sodium,sqlite3,tokenizer,xml,xmlreader,xmlwriter,xsl,zip,zlib"
+          sapi:
+            - cli
+            - fpm
+          download-options:
+            prefer-pre-built: true
+          EOF
+          cat craft.yml
+
+      - name: Build PHP
+        run: ./spc craft
+        env:
+          # Prefer pre-built libs to speed up build
+          SPC_PREFER_PREBUILT: "true"
+
+      - name: Package tarball
+        run: |
+          tarball="php-${{ env.PHP_VERSION }}-${{ matrix.asset_suffix }}.tar.gz"
+          tar -czf "$tarball" -C buildroot .
+          ls -la "$tarball"
+          echo "tarball=$tarball" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.asset_suffix }}
+          path: "php-${{ env.PHP_VERSION }}-${{ matrix.asset_suffix }}.tar.gz"
+
+  release:
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: build-*
+          merge-multiple: true
+          path: release_assets
+
+      - name: List release assets
+        run: ls -la release_assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.php_version }}
+          name: PHP v${{ inputs.php_version }}
+          body: |
+            Static PHP ${{ inputs.php_version }} built with [static-php-cli](https://github.com/crazywhalecc/static-php-cli).
+            Use with mise: `mise use php@${{ inputs.php_version }}` when `MISE_PHP_BACKEND=github:nicholas/php-builds`.
+          files: release_assets/*.tar.gz
+          fail_on_unmatched_files: false
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
